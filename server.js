@@ -4,8 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
-const splitwiseRoutes = require('./routes/splitwiseRoutes'); // Add this line
- // Add this line
+const splitwiseRoutes = require('./routes/splitwiseRoutes');
 
 const app = express();
 
@@ -13,10 +12,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ✅ Add this route
+app.get('/', (req, res) => {
+  res.send('Backend is up and running!');
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes); 
-app.use('/api/splitwise', splitwiseRoutes); // Add this line
+app.use('/api/splitwise', splitwiseRoutes);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
