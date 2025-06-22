@@ -57,18 +57,20 @@ const Signup = () => {
 
     setLoading(true)
     try {
-      const result = await register({
+      await register({
         username: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password
       });
       
-      // Store token if registration is successful
-      if (result.token) {
-        localStorage.setItem('token', result.token);
-      }
-     
-      navigate("/login")
+      // Registration successful - redirect to login page
+      // Don't store token here, let user login properly
+      navigate("/login", { 
+        state: { 
+          message: "Account created successfully! Please sign in with your credentials.",
+          email: formData.email.trim().toLowerCase()
+        }
+      })
     } catch (err) {
       console.error('Registration error:', err);
       setError(err.message || "Registration failed. Please try again.")
@@ -134,20 +136,20 @@ const Signup = () => {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     required
-                    className="block w-full px-3 py-3 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="block w-full px-3 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="Create a password (min 6 characters)"
                     value={formData.password}
                     onChange={handleChange}
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-10 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-r-lg"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400" />
+                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400" />
+                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                     )}
                   </button>
                 </div>
@@ -162,20 +164,20 @@ const Signup = () => {
                     name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     required
-                    className="block w-full px-3 py-3 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="block w-full px-3 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="Confirm your password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-10 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-r-lg"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400" />
+                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400" />
+                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                     )}
                   </button>
                 </div>
