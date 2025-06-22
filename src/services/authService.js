@@ -5,7 +5,8 @@ export const register = async (userData) => {
     const response = await axiosInstance.post('/auth/register', userData);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    // The error is already formatted by the axios interceptor
+    throw new Error(error.message || 'Registration failed');
   }
 };
 
@@ -14,7 +15,7 @@ export const login = async (credentials) => {
     const response = await axiosInstance.post('/auth/login', credentials);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw new Error(error.message || 'Login failed');
   }
 };
 
@@ -32,6 +33,6 @@ export const getMe = async () => {
     });
     return response.data;
   } catch (error) {
-    throw error.response?.data || error;
+    throw new Error(error.message || 'Failed to fetch user data');
   }
 };

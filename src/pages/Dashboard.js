@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Plus, TrendingUp, TrendingDown, IndianRupee, Users } from "lucide-react"
 import TransactionForm from "../components/transactionForm"
@@ -13,13 +13,12 @@ import {
   addCategory, 
   updateTransaction,
   deleteCategory,
-  filterTransactions
+  
 } from "../services/dashboardService"
 
 const Dashboard = () => {
   const navigate = useNavigate()
   const { 
-   
     isAuthenticated, 
     loading: authLoading, 
     dashboardData,
@@ -33,7 +32,6 @@ const Dashboard = () => {
     dateFrom: "",
     dateTo: "",
   })
-  const [filteredTransactions, setFilteredTransactions] = useState([])
   const [transactionLoading, setTransactionLoading] = useState(false)
 
   // Navigate to login if not authenticated
@@ -43,25 +41,25 @@ const Dashboard = () => {
     }
   }, [authLoading, isAuthenticated, navigate])
 
-  // Load dashboard data on authentication
+  // Load dashboard data on authentication - only once
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !dashboardData) {
       loadDashboardData()
     }
-  }, [isAuthenticated, loadDashboardData])
+  }, [isAuthenticated, dashboardData, loadDashboardData])
 
-  // Client-side filtering function - wrapped in useCallback to prevent dependency warnings
-  const getFilteredTransactions = useCallback(() => {
+  // Memoized all transactions with proper type field
+  const allTransactions = useMemo(() => {
     if (!dashboardData) return []
     
-    // Combine all transactions with proper type field
-    const allTransactions = [
+    return [
       ...(dashboardData.incomes?.map(t => ({ ...t, type: 'income' })) || []),
       ...(dashboardData.expenses?.map(t => ({ ...t, type: 'expense' })) || [])
     ]
-    
-    console.log('All transactions before filtering:', allTransactions.length)
-    
+  }, [dashboardData])
+
+  // Memoized filtered transactions
+  const filteredTransactions = useMemo(() => {
     return allTransactions.filter(transaction => {
       // Category filter (only for expenses)
       if (filter.category && transaction.type === 'expense' && transaction.category !== filter.category) {
@@ -79,65 +77,12 @@ const Dashboard = () => {
       
       return true
     })
-  }, [dashboardData, filter])
+  }, [allTransactions, filter])
 
-  // Apply filters whenever filter changes or dashboard data updates
-  useEffect(() => {
-    const applyFilters = async () => {
-      try {
-        setTransactionLoading(true)
-        
-        // Try API filtering first
-        try {
-          const { data } = await filterTransactions({
-            category: filter.category,
-            startDate: filter.dateFrom,
-            endDate: filter.dateTo
-          })
-          
-          // Ensure the data has proper type fields
-          const processedData = data.map(t => ({
-            ...t,
-            type: t.type || (t.category ? 'expense' : 'income') // Fallback type detection
-          }))
-          
-          setFilteredTransactions(processedData)
-          console.log('API filtered transactions:', processedData.length)
-        } catch (apiError) {
-          console.warn('API filtering failed, using client-side filtering:', apiError)
-          // Fallback to client-side filtering
-          const filtered = getFilteredTransactions()
-          setFilteredTransactions(filtered)
-          console.log('Client-side filtered transactions:', filtered.length)
-        }
-        
-      } catch (error) {
-        console.error('Failed to filter transactions:', error)
-        // Final fallback - show all transactions
-        const allTransactions = getFilteredTransactions()
-        setFilteredTransactions(allTransactions)
-      } finally {
-        setTransactionLoading(false)
-      }
-    }
+  // Optimized transaction handlers with proper loading management
+  const handleAddTransaction = useCallback(async (transaction) => {
+    if (transactionLoading) return // Prevent multiple concurrent requests
     
-    if (isAuthenticated && dashboardData) {
-      applyFilters()
-    }
-  }, [filter, isAuthenticated, dashboardData, getFilteredTransactions])
-
-  // Debug effect for filtered transactions
-  useEffect(() => {
-    console.log('Filtered transactions updated:', {
-      total: filteredTransactions.length,
-      incomes: filteredTransactions.filter(t => t.type === 'income').length,
-      expenses: filteredTransactions.filter(t => t.type === 'expense').length,
-      categories: [...new Set(filteredTransactions.filter(t => t.type === 'expense').map(t => t.category))],
-      sample: filteredTransactions.slice(0, 3)
-    })
-  }, [filteredTransactions])
-
-  const handleAddTransaction = async (transaction) => {
     try {
       setTransactionLoading(true)
       const response = await addTransaction({
@@ -152,20 +97,16 @@ const Dashboard = () => {
       setDashboardData(response.data)
       setShowTransactionForm(false)
       
-      // Re-apply filters after adding
-      setTimeout(() => {
-        const filtered = getFilteredTransactions()
-        setFilteredTransactions(filtered)
-      }, 100)
-      
     } catch (error) {
       console.error('Failed to add transaction:', error)
     } finally {
       setTransactionLoading(false)
     }
-  }
+  }, [transactionLoading, setDashboardData])
 
-  const handleDeleteTransaction = async (id) => {
+  const handleDeleteTransaction = useCallback(async (id) => {
+    if (transactionLoading) return
+    
     try {
       setTransactionLoading(true)
       await deleteTransaction(id)
@@ -173,20 +114,16 @@ const Dashboard = () => {
       // Reload dashboard data
       await loadDashboardData()
       
-      // Re-apply filters after deletion
-      setTimeout(() => {
-        const filtered = getFilteredTransactions()
-        setFilteredTransactions(filtered)
-      }, 100)
-      
     } catch (error) {
       console.error('Failed to delete transaction:', error)
     } finally {
       setTransactionLoading(false)
     }
-  }
+  }, [transactionLoading, loadDashboardData])
 
-  const handleEditTransaction = async (id, updatedTransaction) => {
+  const handleEditTransaction = useCallback(async (id, updatedTransaction) => {
+    if (transactionLoading) return
+    
     try {
       setTransactionLoading(true)
       
@@ -198,23 +135,19 @@ const Dashboard = () => {
         date: new Date(updatedTransaction.date || Date.now()).toISOString()
       })
       
-      // Reload dashboard data first
+      // Reload dashboard data
       await loadDashboardData()
-      
-      // Re-apply filters after edit with a small delay to ensure data is loaded
-      setTimeout(() => {
-        const filtered = getFilteredTransactions()
-        setFilteredTransactions(filtered)
-      }, 100)
       
     } catch (error) {
       console.error('Failed to edit transaction:', error)
     } finally {
       setTransactionLoading(false)
     }
-  }
+  }, [transactionLoading, loadDashboardData])
 
-  const handleAddCategory = async (category) => {
+  const handleAddCategory = useCallback(async (category) => {
+    if (transactionLoading) return
+    
     try {
       setTransactionLoading(true)
       await addCategory(category)
@@ -224,9 +157,11 @@ const Dashboard = () => {
     } finally {
       setTransactionLoading(false)
     }
-  }
+  }, [transactionLoading, loadDashboardData])
 
-  const handleDeleteCategory = async (category) => {
+  const handleDeleteCategory = useCallback(async (category) => {
+    if (transactionLoading) return
+    
     try {
       setTransactionLoading(true)
       await deleteCategory(category)
@@ -236,20 +171,26 @@ const Dashboard = () => {
     } finally {
       setTransactionLoading(false)
     }
-  }
+  }, [transactionLoading, loadDashboardData])
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = useCallback((amount) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
       minimumFractionDigits: 2
     }).format(amount)
-  }
+  }, [])
 
-  // Calculate totals
-  const totalIncome = dashboardData?.incomes?.reduce((sum, t) => sum + t.amount, 0) || 0
-  const totalExpense = dashboardData?.expenses?.reduce((sum, t) => sum + t.amount, 0) || 0
-  const balance = totalIncome - totalExpense
+  // Memoized calculations
+  const { totalIncome, totalExpense, balance } = useMemo(() => {
+    const income = dashboardData?.incomes?.reduce((sum, t) => sum + t.amount, 0) || 0
+    const expense = dashboardData?.expenses?.reduce((sum, t) => sum + t.amount, 0) || 0
+    return {
+      totalIncome: income,
+      totalExpense: expense,
+      balance: income - expense
+    }
+  }, [dashboardData])
 
   // Loading state
   if (authLoading || !dashboardData) {
@@ -276,25 +217,27 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {transactionLoading && <LoadingOverlay />}
-{/* Header */}
-<div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div className="flex justify-between items-center py-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="text-gray-600 dark:text-gray-400">Welcome back! Here's your financial overview.</p>
+      
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+              <p className="text-gray-600 dark:text-gray-400">Welcome back! Here's your financial overview.</p>
+            </div>
+            <button
+              onClick={() => navigate("/splitwise")}
+              className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+              disabled={transactionLoading}
+            >
+              <Users className="h-4 w-4" />
+              <span>SplitWise</span>
+            </button>
+          </div>
+        </div>
       </div>
-      <button
-        onClick={() => navigate("/splitwise")}
-        className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-        disabled={transactionLoading}
-      >
-        <Users className="h-4 w-4" />
-        <span>SplitWise</span>
-      </button>
-    </div>
-  </div>
-</div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -341,7 +284,7 @@ const Dashboard = () => {
               disabled={transactionLoading}
             >
               <Plus className="h-5 w-5" />
-              <span>{transactionLoading ? 'Processing...' : 'Add Transaction'}</span>
+              <span>Add Transaction</span>
             </button>
 
             {showTransactionForm && (

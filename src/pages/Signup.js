@@ -29,6 +29,27 @@ const Signup = () => {
     e.preventDefault()
     setError("")
     
+    // Validate form data
+    if (!formData.name.trim()) {
+      setError("Name is required")
+      return
+    }
+    
+    if (!formData.email.trim()) {
+      setError("Email is required")
+      return
+    }
+    
+    if (!formData.password) {
+      setError("Password is required")
+      return
+    }
+    
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long")
+      return
+    }
+    
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match!")
       return
@@ -36,14 +57,20 @@ const Signup = () => {
 
     setLoading(true)
     try {
-      await register({
-        username: formData.name,
-        email: formData.email,
+      const result = await register({
+        username: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
         password: formData.password
-      })
+      });
+      
+      // Store token if registration is successful
+      if (result.token) {
+        localStorage.setItem('token', result.token);
+      }
      
       navigate("/login")
     } catch (err) {
+      console.error('Registration error:', err);
       setError(err.message || "Registration failed. Please try again.")
     } finally {
       setLoading(false)
@@ -69,7 +96,7 @@ const Signup = () => {
             <div className="space-y-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Full Name
+                  Full Name *
                 </label>
                 <input
                   id="name"
@@ -84,7 +111,7 @@ const Signup = () => {
               </div>
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Email
+                  Email *
                 </label>
                 <input
                   id="email"
@@ -99,7 +126,7 @@ const Signup = () => {
               </div>
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Password
+                  Password *
                 </label>
                 <div className="mt-1 relative">
                   <input
@@ -108,7 +135,7 @@ const Signup = () => {
                     type={showPassword ? "text" : "password"}
                     required
                     className="block w-full px-3 py-3 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="Create a password"
+                    placeholder="Create a password (min 6 characters)"
                     value={formData.password}
                     onChange={handleChange}
                   />
@@ -127,7 +154,7 @@ const Signup = () => {
               </div>
               <div>
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Confirm Password
+                  Confirm Password *
                 </label>
                 <div className="mt-1 relative">
                   <input
